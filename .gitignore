@@ -5,3 +5,4 @@ uploads/
 storage/
 *.bak
 *.parquet
+qdrant_bin/
