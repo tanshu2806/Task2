@@ -1,7 +1,11 @@
 const { QdrantClient } = require('@qdrant/js-client-rest');
 const { pipeline } = require('@xenova/transformers');
 
-const client = new QdrantClient({ host: 'localhost', port: 6333, checkCompatibility: false });
+const client = new QdrantClient({
+    url: process.env.QDRANT_URL,
+    apiKey: process.env.QDRANT_API_KEY,
+    checkCompatibility: false
+});
 
 let extractor;
 

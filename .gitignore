@@ -10,3 +10,4 @@ qdrant_bin/
 .qdrant-initialized
 RAG_DIAGNOSTIC_TRACE.txt
 dummy.webm
+qdrant_bin/qdrant.exe
