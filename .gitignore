@@ -6,3 +6,7 @@ storage/
 *.bak
 *.parquet
 qdrant_bin/
+*.log
+.qdrant-initialized
+RAG_DIAGNOSTIC_TRACE.txt
+dummy.webm

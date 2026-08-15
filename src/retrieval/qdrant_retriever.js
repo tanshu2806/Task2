@@ -14,16 +14,24 @@ async function getExtractor() {
 
 async function retrieveFromQdrant(query, collectionName = 'msmarco_xi', limit = 5) {
     const ext = await getExtractor();
+    
+    let t0 = performance.now();
     const out = await ext(query, { pooling: 'mean', normalize: true });
     const embedding = Array.from(out.data);
+    let t1 = performance.now();
+    const embeddingMs = t1 - t0;
     
+    t0 = performance.now();
     const searchResult = await client.query(collectionName, {
         query: embedding,
         limit: limit,
         with_payload: true,
+        with_vector: true
     });
+    t1 = performance.now();
+    const retrievalMs = t1 - t0;
     
-    return searchResult.points.map(res => {
+    const results = searchResult.points.map(res => {
         return {
             score: res.score,
             passage: res.payload.passage,
@@ -33,9 +41,18 @@ async function retrieveFromQdrant(query, collectionName = 'msmarco_xi', limit = 
             answer: res.payload.answer,
             Eng_Answer: res.payload.eng_answer,
             source: res.payload.source_document || 'ai4bharat/MSMARCO-XI',
-            sourceDocument: res.payload.source_document || 'ai4bharat/MSMARCO-XI'
+            sourceDocument: res.payload.source_document || 'ai4bharat/MSMARCO-XI',
+            vector: res.vector
         };
     });
+
+    return {
+        results,
+        timings: {
+            embeddingMs,
+            retrievalMs
+        }
+    };
 }
 
-module.exports = { retrieveFromQdrant };
+module.exports = { retrieveFromQdrant, getExtractor };
