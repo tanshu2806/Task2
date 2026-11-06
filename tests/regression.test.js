@@ -1,32 +1,48 @@
 const assert = require('assert');
-const { isAnswerGrounded } = require('../guardrails');
+const { isAnswerGrounded, ABSTENTION_PREFIX } = require('../guardrails');
 
-console.log('--- RUNNING GROUNDING REGRESSION TESTS ---');
+console.log('--- GROUNDING REGRESSION CHECKS ---');
 
-// TEST A - Clearly grounded
-const ctxA = 'The capital of Goa is Panaji.';
-const ansA = 'The capital of Goa is Panaji.';
-const resA = isAnswerGrounded(ansA, ctxA);
-assert.strictEqual(resA.grounded, true, 'Test A failed');
-console.log('Test A (Clearly grounded): Passed');
+const matchingEmbedding = [1, 0];
+const matchingContext = [{ embedding: [1, 0] }];
 
-// TEST B - Clearly ungrounded
-const ctxB = 'The capital of Goa is Panaji.';
-const ansB = 'The capital of Goa is Mumbai.';
-const resB = isAnswerGrounded(ansB, ctxB);
-assert.strictEqual(resB.grounded, false, 'Test B failed');
-console.log('Test B (Clearly ungrounded): Passed');
+// Grounded answers need both supported hard claims and semantic evidence.
+const supported = isAnswerGrounded(
+    'The capital of Goa is Panaji.',
+    'The capital of Goa is Panaji.',
+    matchingEmbedding,
+    matchingContext
+);
+assert.strictEqual(supported.grounded, true, 'Supported answer should pass');
+assert.strictEqual(supported.method, 'semantic');
+console.log('Supported answer: passed');
 
-// TEST C - Unanswerable (Abstention)
-const ctxC = 'Goa is a state in southwestern India.';
-const ansC = 'The population of Goa is 2 million.';
-const resC = isAnswerGrounded(ansC, ctxC);
-assert.strictEqual(resC.grounded, false, 'Test C failed (should flag hallucination)');
-console.log('Test C (Unanswerable/Hallucination): Passed');
+// A conflicting entity must fail even if the supplied semantic score is high.
+const conflict = isAnswerGrounded(
+    'The capital of Goa is Mumbai.',
+    'The capital of Goa is Panaji.',
+    matchingEmbedding,
+    matchingContext
+);
+assert.strictEqual(conflict.grounded, false, 'Conflicting entity should fail');
+assert.strictEqual(conflict.method, 'lexical_claims_failed');
+console.log('Conflicting entity: rejected');
 
-// TEST C2 - Valid Abstention String
-const ansC2 = "I couldn't find enough information in the provided knowledge base to answer that question.";
-const resC2 = isAnswerGrounded(ansC2, ctxC);
-assert.strictEqual(resC2.grounded, true, 'Test C2 failed');
-assert.strictEqual(resC2.abstention, true, 'Test C2 failed');
-console.log('Test C2 (Safe Abstention): Passed');
+// A claim with no evidence must not be treated as grounded.
+const noEvidence = isAnswerGrounded(
+    'The population of Goa is 2 million.',
+    'Goa is a state in southwestern India.'
+);
+assert.strictEqual(noEvidence.grounded, false, 'Unsupported claim should fail');
+console.log('Unsupported claim: rejected');
+
+// Abstention is a safe outcome, including when no evidence was retrieved.
+const abstention = isAnswerGrounded(
+    ABSTENTION_PREFIX + ' in the provided knowledge base.',
+    ''
+);
+assert.strictEqual(abstention.grounded, true, 'Abstention should pass');
+assert.strictEqual(abstention.abstention, true, 'Abstention should be identified');
+console.log('Safe abstention: passed');
+
+console.log('All grounding regression checks passed.');
