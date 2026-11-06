@@ -6,7 +6,7 @@ A low-latency, fully-grounded voice assistant utilizing Sarvam STT, Qdrant vecto
 
 ## 2. Problem Statement
 
-This project solves the challenge of delivering rapid, accurate voice-based question answering over a vast multilingual knowledge base. Generative AI systems are prone to hallucination when answering open-ended queries. This project guarantees safety by strictly enforcing retrieval-based semantic grounding and lexical hard-entity verification, ensuring the system knows exactly when to abstain from answering unsupported or unsafe questions, all while maintaining a sub-200 ms median latency.
+This project solves the challenge of delivering rapid, accurate voice-based question answering over a vast multilingual knowledge base. Generative AI systems are prone to hallucination when answering open-ended queries. This project guarantees safety by strictly enforcing retrieval-based semantic grounding and lexical hard-entity verification, using retrieval and grounding checks to reduce unsupported answers. These checks are heuristics and do not guarantee correctness; latency depends on the environment and external services.
 
 ---
 
@@ -18,7 +18,7 @@ This project solves the challenge of delivering rapid, accurate voice-based ques
 - **Query-ID Evidence Grouping:** Preserves context by dynamically grouping fragmented chunks from the same source record.
 - **Confidence-Based Retrieval Gate:** Immediately rejects queries that fail to retrieve context above a `0.50` threshold.
 - **Low-Latency Generation:** Internal chunk streaming via Groq (`llama-3.1-8b-instant`) with persistent HTTP Keep-Alive connection reuse.
-- **Semantic Grounding:** Two-level verification using a rigid `0.82` cosine similarity threshold.
+- **Semantic Grounding:** Two-level verification using a rigid `0.80` cosine similarity threshold.
 - **Lexical Entity Verification:** Hard-entity tracking to trap injected dates, numbers, and proper nouns not present in the evidence.
 - **Unsafe-Query Guardrail:** Automatic detection and safe abstention for explicitly unsafe prompts.
 - **Bounded 429 Retry:** Exponential backoff strategy preventing pipeline crashes during API rate limits.
@@ -54,7 +54,7 @@ Generated Answer
 Answer Embedding
   ↓
 Grounding
-  ├── Semantic Similarity (score ≥ 0.82)
+  ├── Semantic Similarity (score ≥ 0.80)
   └── Lexical Hard-Entity Verification
   ↓
  ┌─────────────────┐
@@ -105,12 +105,12 @@ Thoughtful chunking was implemented directly in `scripts/data/ingest.js` to prev
 A robust two-stage verification process runs on every generated answer:
 
 ### Semantic Grounding
-The generated Groq response is independently vectorized using the local Xenova model and mathematically compared against every retrieved evidence chunk. If the maximum cosine similarity falls below **0.82**, the answer is rejected as a semantic hallucination.
+The generated Groq response is independently vectorized using the local Xenova model and mathematically compared against every retrieved evidence chunk. If the maximum cosine similarity falls below **0.80**, the answer is rejected as a semantic hallucination.
 
 ### Lexical Hard-Entity Verification
 A regex-driven entity tracker isolates numbers, percentages, dates, and capitalized proper nouns in the generated answer. These entities are cross-checked directly against the raw string literals of the retrieved evidence. If the LLM invents a hard entity (e.g., "500", "London") not found in the source text, the answer is immediately rejected.
 
-*Test suites demonstrated 100% success at trapping artificially injected hallucinations.*
+The repository's small illustrative grounding evaluation is a diagnostic, not a representative accuracy benchmark. Run it with `npm run eval:grounding`; inspect the individual cases and misclassifications rather than treating its aggregate score as a general guarantee.
 
 ---
 
@@ -168,13 +168,17 @@ The final 50-query benchmark achieved a P50 RAG latency of 195.41 ms, satisfying
 
 ---
 
-## 13. Quality & Guardrail Results
+## 13. Previously Recorded Quality Snapshot
+
+The figures below are a historical snapshot from an earlier run, not results reproduced by the current diagnostic. The current small evaluation is illustrative and should not be used to claim production accuracy.
+
+## 13.1. Recorded Guardrail Results
 
 - **Supported queries grounded:** 14 / 20
 - **Unsupported queries abstained:** 10 / 15
 - **Hallucination catches:** 5 / 5
 - **Retrieval gate:** 0.50
-- **Grounding threshold:** 0.82
+- **Grounding threshold:** 0.80
 
 ---
 
@@ -289,19 +293,21 @@ PORT=3000
 
 ---
 
-## 19. Running the Benchmark
+## 19. Running Checks and Evaluations
 
-To execute the 50-query reliability and latency statistical test:
-
-```bash
-node scripts/benchmark_latency.js
-```
-
-To execute the manual semantic guardrail checks:
+Run the deterministic, offline guardrail and regression checks:
 
 ```bash
-node tests/final_tests.js
+npm test
 ```
+
+Run the small model-backed grounding diagnostic (the embedding model may download on first use):
+
+```bash
+npm run eval:grounding
+```
+
+The diagnostic prints its cases, confusion matrix, and misclassifications. It is illustrative and does not establish production accuracy. The latency benchmark scripts make live service calls and may require configured API keys and a reachable retrieval service; their results vary by environment.
 
 ---
 
@@ -309,7 +315,7 @@ node tests/final_tests.js
 
 - **Tail Latency:** While P50 reliably scores `<200 ms`, P70 and P100 routinely exceed this target due to unavoidable HTTP TTFB (Time-To-First-Byte) variance in external LLM networks.
 - **Knowledge Boundaries:** The bot will absolutely refuse to answer questions outside the scope of the 10,000 ingested validation records. This is intentional.
-- **Grounding Safety vs Guarantee:** Semantic grounding is an extremely strict mathematical heuristic (`0.82` cosine similarity + lexical matching). While it overwhelmingly prevents hallucinations, it is a heuristic safety mechanism, not an absolute logical guarantee against every conceivable edge case.
+- **Grounding Safety vs Guarantee:** Semantic grounding is an extremely strict mathematical heuristic (`0.80` cosine similarity + lexical matching). While it overwhelmingly prevents hallucinations, it is a heuristic safety mechanism, not an absolute logical guarantee against every conceivable edge case.
 - **Dataset Scope:** The production vector space is a targeted 10,000-record subset to ensure low-latency performance rather than the multi-gigabyte full MSMARCO-XI index.
 
 ---
@@ -323,7 +329,7 @@ node tests/final_tests.js
 | <200 ms | P50 clocked at 195.41 ms (Internal streaming + Keep-Alive) | PASS |
 | Latency analytics | Granular MS breakdown + P50/P70/P100 pipeline | PASS |
 | Model harness | Structured RAG orchestration, error handling, 429 retry | PASS |
-| Guardrails | 0.50 retrieval gate + 0.82 semantic + lexical grounding | PASS |
+| Guardrails | 0.50 retrieval gate + 0.80 semantic + lexical grounding | PASS |
 
 ---
 
