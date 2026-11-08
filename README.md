@@ -1,12 +1,12 @@
-# Voice-Enabled Grounded RAG Assistant over MSMARCO-XI
+# Voice-Enabled RAG Assistant over MSMARCO-XI
 
-A low-latency, fully-grounded voice assistant utilizing Sarvam STT, Qdrant vector retrieval, and Groq's Llama 3.1 to answer questions from the MSMARCO-XI knowledge base.
+A voice-enabled RAG assistant using Sarvam STT, Qdrant retrieval, and Groq's Llama 3.1. It returns a generated answer only when the configured retrieval and grounding checks accept it; these checks are heuristics, not a proof of factual correctness.
 
 ---
 
 ## 2. Problem Statement
 
-This project solves the challenge of delivering rapid, accurate voice-based question answering over a vast multilingual knowledge base. Generative AI systems are prone to hallucination when answering open-ended queries. This project guarantees safety by strictly enforcing retrieval-based semantic grounding and lexical hard-entity verification, using retrieval and grounding checks to reduce unsupported answers. These checks are heuristics and do not guarantee correctness; latency depends on the environment and external services.
+This project explores voice question answering over an indexed MSMARCO-XI subset. The request path retrieves evidence, gates low-scoring retrievals, generates a draft from the selected evidence, and withholds drafts rejected by the lexical or semantic grounding checks. These checks reduce some unsupported responses but are heuristic and do not guarantee correctness. Latency varies with model startup, external services, and network conditions.
 
 ---
 
@@ -14,13 +14,12 @@ This project solves the challenge of delivering rapid, accurate voice-based ques
 
 - **Voice Input Integration:** Native `multipart/form-data` audio processing using Sarvam STT.
 - **MSMARCO-XI Knowledge Base:** Fast semantic search over genuine MSMARCO-XI validation records.
-- **Local Vector Search:** Qdrant local instance utilizing `Xenova/all-MiniLM-L6-v2` for 384-dimensional embeddings.
+- **Vector Search:** Qdrant collection configured through `QDRANT_URL` (local Docker or Qdrant Cloud), using `Xenova/all-MiniLM-L6-v2` embeddings.
 - **Query-ID Evidence Grouping:** Preserves context by dynamically grouping fragmented chunks from the same source record.
 - **Confidence-Based Retrieval Gate:** Immediately rejects queries that fail to retrieve context above a `0.50` threshold.
 - **Low-Latency Generation:** Internal chunk streaming via Groq (`llama-3.1-8b-instant`) with persistent HTTP Keep-Alive connection reuse.
 - **Semantic Grounding:** Two-level verification using a rigid `0.80` cosine similarity threshold.
 - **Lexical Entity Verification:** Hard-entity tracking to trap injected dates, numbers, and proper nouns not present in the evidence.
-- **Unsafe-Query Guardrail:** Automatic detection and safe abstention for explicitly unsafe prompts.
 - **Bounded 429 Retry:** Exponential backoff strategy preventing pipeline crashes during API rate limits.
 - **Granular Latency Telemetry:** High-resolution breakdown of every discrete pipeline stage (STT, embedding, Qdrant, grouping, generation, grounding).
 
@@ -63,7 +62,7 @@ Grounding
  └─────────────────┘
 ```
 
-The pipeline enforces safety strictly at the top layer (retrieval gate) and bottom layer (grounding guardrail) before the user ever sees an answer.
+The retrieval gate blocks low-scoring results. When generation runs, a failed grounding check replaces the draft with a fixed abstention before it is returned. Both gates are heuristics, so their status should be read as diagnostic evidence rather than a guarantee.
 
 ---
 
@@ -72,7 +71,7 @@ The pipeline enforces safety strictly at the top layer (retrieval gate) and bott
 **Dataset:** `ai4bharat/MSMARCO-XI` (Hindi Validation Split)  
 **Production Records:** 10,000 genuine ingested records.
 
-The full dataset was **NOT** downloaded locally due to its immense size and processing requirements. Instead, a targeted extraction of the `hinval.parquet` split was isolated and deeply indexed into a fast Qdrant vector database. This prevents the severe latency penalties of querying raw remote Parquet files while guaranteeing identical knowledge provenance. The production knowledge base operates exclusively on these 10,000 verified chunks.
+The full dataset was **NOT** downloaded locally due to its immense size and processing requirements. Instead, a targeted extraction of the `hinval.parquet` split was isolated and deeply indexed into a fast Qdrant vector database. This prevents the severe latency penalties of querying raw remote Parquet files while guaranteeing identical knowledge provenance. The project documentation records a 10,000-record target subset; the live Qdrant collection is configured separately and should be audited before relying on its current size.
 
 ---
 
@@ -92,11 +91,11 @@ Thoughtful chunking was implemented directly in `scripts/data/ingest.js` to prev
 
 1. **Query Preprocessing:** The STT transcript is stripped, trimmed, and formatted.
 2. **Query Embedding:** `Xenova/all-MiniLM-L6-v2` executes locally via WASM to vectorize the query in under 10ms.
-3. **Qdrant Search:** The vector is queried against the local `msmarco_xi` collection (Top-K = 5).
+3. **Qdrant Search:** The vector is queried against the configured `msmarco_xi` collection (Top-K = 5).
 4. **Score Ordering & Metadata Extraction:** Results are decoded and mapped to their underlying passages.
 5. **Query-ID Grouping:** Independent vectors originating from the same parent passage are regrouped using `query_id`.
 6. **Evidence Construction:** The highest-scoring grouped passages are joined to form a unified context string.
-7. **Retrieval Gate:** If the max Qdrant similarity score is `< 0.50`, the system aborts execution, saving external API tokens and instantly returning a safe abstention.
+7. **Retrieval Gate:** If the best Qdrant score is `< 0.50`, the system skips generation and returns an abstention.
 
 ---
 
@@ -121,8 +120,8 @@ The repository's small illustrative grounding evaluation is a diagnostic, not a 
 | High retrieval confidence | LLM called |
 | Low retrieval confidence | Abstain |
 | Unsupported query | Abstain |
-| Unsafe query | Block / Abstain |
-| Ungrounded generated answer | Reject / Abstain |
+| Unsafe query | No dedicated unsafe-query check is currently wired into the request path |
+| Ungrounded generated answer | Replace the draft with a fixed abstention before returning it |
 | Supported grounded answer | Return answer |
 | Groq HTTP 429 | Retry with bounded backoff (max 3) |
 
@@ -164,7 +163,7 @@ Achieving `<200 ms` required compounding optimizations:
 | P70 | 230.74 ms |
 | P100 | 578.78 ms |
 
-The final 50-query benchmark achieved a P50 RAG latency of 195.41 ms, satisfying the sub-200 ms target at the median. P70 and P100 reflect normal tail latency variation from the external LLM network service.
+These are previously recorded benchmark results. They were not reproduced during this documentation update, and should not be treated as a latency target or a guarantee; external service and network timings vary.
 
 ---
 
@@ -247,36 +246,25 @@ project/
 
 ## 17. Installation
 
-1. **Clone the repository:**
+1. **Clone the repository and install packages:**
    ```bash
    git clone <repo-url>
    cd <repo-directory>
-   ```
-
-2. **Install dependencies:**
-   ```bash
    npm install
    ```
 
-3. **Configure Environment:**
-   Copy `.env.example` to `.env` and fill in your API keys.
+2. **Configure services:** Copy `.env.example` to `.env`. Set `GROQ_API_KEY` for generated answers and `SARVAM_API_KEY` for voice transcription. Set `QDRANT_URL` to your Qdrant endpoint; for Qdrant Cloud, also set `QDRANT_API_KEY`.
 
-4. **Initialize Qdrant Database:**
-   ```bash
-   docker-compose up -d
-   ```
-   *(Ensure Qdrant is running, then run data ingestion if not using pre-packaged storage)*
-   ```bash
-   node scripts/data/ingest.js
-   ```
+3. **Choose a Qdrant deployment:** For a local instance, start Docker Compose with `docker compose up -d`. For Cloud, use the cluster URL and key in `.env` instead; local Docker is not needed.
 
-5. **Start the Server:**
+4. **Prepare the collection if needed:** If the selected Qdrant instance does not already contain the `msmarco_xi` collection, review the ingestion script and dataset setup, then run `node scripts/data/ingest.js`. Do not ingest again into an already populated collection.
+
+5. **Start the server:**
    ```bash
    npm start
    ```
 
-6. **Access UI:**
-   Open `http://localhost:3000` in your web browser.
+6. **Open the UI:** Visit `http://localhost:3000`.
 
 ---
 
@@ -287,6 +275,8 @@ Create a `.env` file in the root directory:
 ```env
 GROQ_API_KEY=
 SARVAM_API_KEY=
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=
 PORT=3000
 ```
 *(No hardcoded keys should ever be committed)*
@@ -313,8 +303,8 @@ The diagnostic prints its cases, confusion matrix, and misclassifications. It is
 
 ## 20. Limitations
 
-- **Tail Latency:** While P50 reliably scores `<200 ms`, P70 and P100 routinely exceed this target due to unavoidable HTTP TTFB (Time-To-First-Byte) variance in external LLM networks.
-- **Knowledge Boundaries:** The bot will absolutely refuse to answer questions outside the scope of the 10,000 ingested validation records. This is intentional.
+- **Tail Latency:** The historical P50/P70/P100 values above are environment-specific observations, not guaranteed performance.
+- **Knowledge Boundaries:** Retrieval and grounding checks can abstain when evidence is insufficient, but they are heuristic and cannot guarantee that every unsupported query is caught.
 - **Grounding Safety vs Guarantee:** Semantic grounding is an extremely strict mathematical heuristic (`0.80` cosine similarity + lexical matching). While it overwhelmingly prevents hallucinations, it is a heuristic safety mechanism, not an absolute logical guarantee against every conceivable edge case.
 - **Dataset Scope:** The production vector space is a targeted 10,000-record subset to ensure low-latency performance rather than the multi-gigabyte full MSMARCO-XI index.
 
@@ -326,7 +316,7 @@ The diagnostic prints its cases, confusion matrix, and misclassifications. It is
 |---|---|---|
 | Speech-to-text | Sarvam native audio integration via `/api/ask` | PASS |
 | Chunking | Sentence-aware + 50-char overlap + metadata tagging | PASS |
-| <200 ms | P50 clocked at 195.41 ms (Internal streaming + Keep-Alive) | PASS |
+| <200 ms | Historical recorded P50: 195.41 ms; not a guaranteed target | RECORDED |
 | Latency analytics | Granular MS breakdown + P50/P70/P100 pipeline | PASS |
 | Model harness | Structured RAG orchestration, error handling, 429 retry | PASS |
 | Guardrails | 0.50 retrieval gate + 0.80 semantic + lexical grounding | PASS |
