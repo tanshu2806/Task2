@@ -272,6 +272,13 @@
             margin-bottom: 0.5rem;
         }
 
+        .decision-detail {
+            margin-top: 0.4rem;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
         /* Collapsibles */
         .collapsible {
             background: rgba(15, 23, 42, 0.4);
@@ -399,6 +406,7 @@
                         <span class="badge neutral">Grounding</span>
                         <span id="resGrounding" class="badge neutral">-</span>
                     </div>
+                    <div id="resGroundingDetail" class="decision-detail" aria-live="polite"></div>
                 </div>
 
                 <div class="collapsible" id="evidenceCollapsible">
@@ -619,7 +627,8 @@
             document.getElementById('resLLM').innerHTML = "NOT CALLED";
             
             document.getElementById('resGrounding').className = "badge neutral";
-            document.getElementById('resGrounding').innerHTML = "NOT CHECKED";
+            document.getElementById('resGrounding').textContent = "NOT CHECKED";
+            document.getElementById('resGroundingDetail').textContent = "";
         }
 
         function showResult(data) {
@@ -657,20 +666,31 @@
 
             // Grounding Status
             const gndEl = document.getElementById('resGrounding');
-            if (!data.grounding || !data.grounding.checked) {
+            const gndDetail = document.getElementById('resGroundingDetail');
+            const grounding = data.grounding || {};
+            if (!grounding.checked) {
                 if (gate === 'FAIL') {
                     gndEl.className = 'badge abstain';
                     gndEl.textContent = '⚠ ABSTAINED';
+                    gndDetail.textContent = 'The retrieval gate blocked generation; grounding was not checked.';
                 } else {
                     gndEl.className = 'badge neutral';
                     gndEl.textContent = '○ NOT CHECKED';
+                    gndDetail.textContent = 'No model answer was generated, so grounding was not checked.';
                 }
-            } else if (data.grounding.passed) {
+            } else if (grounding.passed) {
                 gndEl.className = 'badge grounded';
-                gndEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> GROUNDED`;
+                gndEl.textContent = '✓ GROUNDED';
+                const confidence = Number(grounding.confidence);
+                gndDetail.textContent = Number.isFinite(confidence)
+                    ? `Passed ${grounding.method || 'grounding'} check (score ${confidence.toFixed(3)}).`
+                    : `Passed ${grounding.method || 'grounding'} check.`;
             } else {
                 gndEl.className = 'badge unsupported';
-                gndEl.innerHTML = `⚠ UNSUPPORTED`;
+                gndEl.textContent = '⚠ WITHHELD';
+                const confidence = Number(grounding.confidence);
+                const score = Number.isFinite(confidence) ? ` (score ${confidence.toFixed(3)})` : '';
+                gndDetail.textContent = `The draft failed ${grounding.method || 'grounding'} checks and was withheld${score}.`;
             }
 
             // Technical Details Table
