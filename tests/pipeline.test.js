@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { isQuerySafe, normalizeQuery, isAnswerGrounded, ABSTENTION_PREFIX } = require('../guardrails');
+const { isQuerySafe, normalizeQuery, isAnswerGrounded, groundedAnswerOrAbstain, ABSTENTION_PREFIX } = require('../guardrails');
 
 function run(name, check) {
     check();
@@ -49,6 +49,18 @@ run('treats the configured abstention as a safe result', () => {
     const result = isAnswerGrounded(ABSTENTION_PREFIX + ' in the knowledge base.', '');
     assert.strictEqual(result.grounded, true);
     assert.strictEqual(result.abstention, true);
+});
+
+run('withholds an answer rejected by grounding', () => {
+    const safeAnswer = groundedAnswerOrAbstain('Unsupported draft text.', { grounded: false });
+    assert.strictEqual(safeAnswer, ABSTENTION_PREFIX + ' in the provided knowledge base.');
+});
+
+run('preserves an answer accepted by grounding', () => {
+    assert.strictEqual(
+        groundedAnswerOrAbstain('Supported answer.', { grounded: true }),
+        'Supported answer.'
+    );
 });
 
 console.log('All offline guardrail checks passed.');

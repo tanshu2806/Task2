@@ -34,6 +34,11 @@ function extractClaims(text) {
     return matches.map(m => m.toLowerCase()).filter(w => !STOP_WORDS.has(w));
 }
 
+function groundedAnswerOrAbstain(answer, groundingResult) {
+    if (groundingResult && groundingResult.grounded === true) return answer;
+    return `${ABSTENTION_PREFIX} in the provided knowledge base.`;
+}
+
 function isAnswerGrounded(answer, retrievedContexts, answerEmbedding = null, chunkEmbeddings = []) {
     let t0 = performance.now();
     if (answer.startsWith(ABSTENTION_PREFIX)) {
@@ -79,4 +84,4 @@ function isAnswerGrounded(answer, retrievedContexts, answerEmbedding = null, chu
     return { grounded: false, abstention: false, confidence: maxSim, method: 'semantic_failed', lexicalMs: lexicalMs, semanticMs: tSem - tLex };
 }
 
-module.exports = { isQuerySafe, normalizeQuery, isAnswerGrounded, ABSTENTION_PREFIX };
+module.exports = { isQuerySafe, normalizeQuery, isAnswerGrounded, groundedAnswerOrAbstain, ABSTENTION_PREFIX };

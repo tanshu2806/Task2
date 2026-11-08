@@ -70,7 +70,7 @@ app.post('/retrieve', async (req, res) => {
 
 async function processAskQuery(query) {
     const { retrieveFromQdrant, getExtractor } = require('./src/retrieval/qdrant_retriever');
-    const { isAnswerGrounded } = require('./guardrails');
+    const { isAnswerGrounded, groundedAnswerOrAbstain } = require('./guardrails');
     const axios = require('axios');
     
     const ragT0 = performance.now();
@@ -258,7 +258,7 @@ async function processAskQuery(query) {
         answer = "I couldn't find enough information in the provided knowledge base\nto answer that question.";
     }
 
-    let groundingResult = { checked: false, passed: false };
+    let groundingResult = { checked: false, passed: false, abstained: true, method: 'not_checked' };
     let answerEmbeddingMs = null;
     let groundingTotalMs = 0;
     let groundingLexicalMs = 0;
@@ -274,7 +274,14 @@ async function processAskQuery(query) {
 
         let gndT0 = performance.now();
         const gRes = isAnswerGrounded(answer, context, answerEmbedding, chunkEmbeddings);
-        groundingResult = { checked: true, passed: gRes.grounded, confidence: gRes.confidence };
+        answer = groundedAnswerOrAbstain(answer, gRes);
+        groundingResult = {
+            checked: true,
+            passed: gRes.grounded,
+            abstained: !gRes.grounded,
+            confidence: gRes.confidence,
+            method: gRes.method
+        };
         let gndT1 = performance.now();
         groundingTotalMs = gndT1 - gndT0;
         groundingLexicalMs = gRes.lexicalMs || 0;
