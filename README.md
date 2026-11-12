@@ -297,7 +297,7 @@ Run the small model-backed grounding diagnostic (the embedding model may downloa
 npm run eval:grounding
 ```
 
-The diagnostic prints its cases, confusion matrix, and misclassifications. It is illustrative and does not establish production accuracy. The latency benchmark scripts make live service calls and may require configured API keys and a reachable retrieval service; their results vary by environment.
+The diagnostic prints individual scores, a confusion matrix, and misclassifications. It includes a negation-reversal case where wording overlaps but the answer contradicts the evidence; if the heuristic accepts that answer, the script reports a false positive and exits non-zero. The suite is illustrative and does not establish production accuracy. Latency benchmark scripts make live service calls and may require configured API keys and a reachable retrieval service; their results vary by environment.
 
 ---
 

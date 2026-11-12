@@ -32,9 +32,9 @@
 
 ## 4. Explain grounding checks (1:10–1:35)
 
-**Show:** `node tests/pipeline.test.js` for fast local guardrail checks, or `npm run eval:grounding` for the model-backed illustrative cases.
+**Show:** `node tests/pipeline.test.js` for fast offline guardrail checks, or `npm run eval:grounding` for model-backed diagnostic cases. Point out the negation-reversal case: its answer repeats the evidence wording but flips the claim. If it is reported as grounded, treat that as a false positive and a limitation to investigate.
 
-**Say:** “The evaluation reports individual outcomes and errors. It is a small diagnostic suite, not a statistically representative accuracy claim.”
+**Say:** “These cases probe specific behaviors and report scores and errors. They are a small diagnostic suite, not a statistically representative accuracy claim.”
 
 ## 5. Close (1:35–1:45)
 
