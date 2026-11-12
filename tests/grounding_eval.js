@@ -46,6 +46,12 @@ const cases = [
         expected: false
     },
     {
+        name: 'Negation reversal with shared wording',
+        context: 'The treatment did not reduce pain.',
+        answer: 'The treatment reduced pain.',
+        expected: false
+    },
+    {
         name: 'No evidence',
         context: '',
         answer: 'The capital of Goa is Panaji.',
@@ -102,7 +108,10 @@ async function evaluate() {
         else fn++;
 
         if (!passed) failures.push({ name: test.name, expected: test.expected, actual: result.grounded });
-        console.log(`${passed ? 'PASS' : 'FAIL'}  ${test.name}: expected ${test.expected}, got ${result.grounded} (${result.method})`);
+        const score = Number.isFinite(result.confidence)
+            ? `, score ${result.confidence.toFixed(3)}`
+            : '';
+        console.log(`${passed ? 'PASS' : 'FAIL'}  ${test.name}: expected ${test.expected}, got ${result.grounded} (${result.method}${score})`);
     }
 
     const total = tp + fp + tn + fn;
