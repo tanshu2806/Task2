@@ -11,6 +11,7 @@ function isQuerySafe(query) {
 }
 
 function normalizeQuery(query) {
+    if (typeof query !== 'string') return '';
     return query.replace(/\s+/g, ' ').trim();
 }
 

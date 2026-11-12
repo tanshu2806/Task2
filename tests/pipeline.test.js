@@ -15,8 +15,11 @@ run('rejects empty and inappropriate queries', () => {
     assert.strictEqual(isQuerySafe('you are stupid').safe, false);
 });
 
-run('normalizes whitespace', () => {
+run('normalizes whitespace and rejects blank or non-text input', () => {
     assert.strictEqual(normalizeQuery('  hello   world  '), 'hello world');
+    assert.strictEqual(normalizeQuery('   \n\t '), '');
+    assert.strictEqual(normalizeQuery(null), '');
+    assert.strictEqual(normalizeQuery(42), '');
 });
 
 run('accepts a supported answer when its embeddings match', () => {

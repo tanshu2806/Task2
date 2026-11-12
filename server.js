@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const https = require('https');
 const { initPipeline, runPipeline } = require('./rag_pipeline');
+const { normalizeQuery } = require('./guardrails');
 
 const keepAliveAgent = new https.Agent({ keepAlive: true });
 
@@ -52,9 +53,9 @@ app.get('/health', (req, res) => {
 app.post('/retrieve', async (req, res) => {
     const { retrieveFromQdrant } = require('./src/retrieval/qdrant_retriever');
     try {
-        const query = req.body.query;
+        const query = normalizeQuery(req.body?.query);
         if (!query) {
-            return res.status(400).json({ error: 'Missing query' });
+            return res.status(400).json({ error: 'Query must be a non-empty string' });
         }
         
         const results = await retrieveFromQdrant(query);
@@ -76,11 +77,10 @@ async function processAskQuery(query) {
     const ragT0 = performance.now();
     let qpT0 = performance.now();
     
-    if (!query) {
-        throw new Error('Missing query');
+    const processedQuery = normalizeQuery(query);
+    if (!processedQuery) {
+        throw new Error('Query must be a non-empty string');
     }
-    
-    const processedQuery = query.trim();
     let qpT1 = performance.now();
     const queryProcessingMs = qpT1 - qpT0;
     
@@ -325,9 +325,9 @@ async function processAskQuery(query) {
 
 app.post('/ask', async (req, res) => {
     try {
-        const query = req.body.query;
+        const query = normalizeQuery(req.body?.query);
         if (!query) {
-            return res.status(400).json({ error: 'Missing query' });
+            return res.status(400).json({ error: 'Query must be a non-empty string' });
         }
         
         const result = await processAskQuery(query);
