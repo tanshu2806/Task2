@@ -616,7 +616,9 @@
         function showErrorResult(msg) {
             resultEl.style.display = 'flex';
             document.getElementById('resQuery').textContent = "ERROR";
-            document.getElementById('resAnswer').innerHTML = `<span style="color: var(--danger)">System Error: ${msg}</span>`;
+            const answerEl = document.getElementById('resAnswer');
+            answerEl.textContent = `System Error: ${msg}`;
+            answerEl.style.color = 'var(--danger)';
             document.getElementById('resContext').textContent = "No context available";
             
             document.getElementById('resGate').className = "badge error";
@@ -636,7 +638,9 @@
             
             // Text values
             document.getElementById('resQuery').textContent = data.query || 'No query detected';
-            document.getElementById('resAnswer').textContent = data.answer || 'No answer generated';
+            const answerEl = document.getElementById('resAnswer');
+            answerEl.textContent = data.answer || 'No answer generated';
+            answerEl.style.color = '';
             document.getElementById('resContext').textContent = data.context || 'No context retrieved';
             
             // Retrieval Gate
