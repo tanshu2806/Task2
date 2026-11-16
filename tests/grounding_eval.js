@@ -6,60 +6,70 @@ let extractor;
 
 const cases = [
     {
+        category: 'supported_answer',
         name: 'Directly supported statement',
         context: 'The capital of Goa is Panaji.',
         answer: 'The capital of Goa is Panaji.',
         expected: true
     },
     {
+        category: 'supported_answer',
         name: 'Supported paraphrase',
         context: 'Panaji serves as the capital of the Indian state of Goa.',
         answer: "Panaji is Goa's capital.",
         expected: true
     },
     {
+        category: 'supported_answer',
         name: 'Supported number',
         context: 'Goa has 2 districts.',
         answer: 'Goa has 2 districts.',
         expected: true
     },
     {
+        category: 'unsupported_claim',
         name: 'Incorrect place',
         context: 'The capital of Goa is Panaji.',
         answer: 'The capital of Goa is Mumbai.',
         expected: false
     },
     {
+        category: 'unsupported_claim',
         name: 'Invented number',
         context: 'Goa is visited by 5 million tourists.',
         answer: 'Goa is visited by 8 million tourists.',
         expected: false
     },
     {
+        category: 'unsupported_addition',
         name: 'Supported fact with extra claim',
         context: 'The capital of Goa is Panaji.',
         answer: 'The capital of Goa is Panaji, and Mumbai is its largest city.',
         expected: false
     },
     {
+        category: 'unsupported_addition',
         name: 'Unsupported named entity',
         context: 'Goa is a state in western India.',
         answer: 'Goa is a state in western India near London.',
         expected: false
     },
     {
+        category: 'negation_counterfactual',
         name: 'Negation reversal with shared wording',
         context: 'The treatment did not reduce pain.',
         answer: 'The treatment reduced pain.',
         expected: false
     },
     {
+        category: 'no_evidence',
         name: 'No evidence',
         context: '',
         answer: 'The capital of Goa is Panaji.',
         expected: false
     },
     {
+        category: 'abstention',
         name: 'Explicit abstention',
         context: 'The capital of Goa is Panaji.',
         answer: ABSTENTION_PREFIX + ' in the knowledge base.',
@@ -112,6 +122,7 @@ async function evaluate() {
 
         const caseResult = {
             name: test.name,
+            category: test.category,
             expected: test.expected,
             actual: result.grounded,
             passed,
@@ -128,10 +139,26 @@ async function evaluate() {
 
     const total = tp + fp + tn + fn;
     const accuracy = total ? (tp + tn) / total : 0;
+    const byCategory = {};
+    for (const result of caseResults) {
+        const summary = byCategory[result.category] || { cases: 0, passed: 0, failed: 0, failures: [] };
+        summary.cases++;
+        if (result.passed) summary.passed++;
+        else {
+            summary.failed++;
+            summary.failures.push(result.name);
+        }
+        byCategory[result.category] = summary;
+    }
     const precision = tp + fp ? tp / (tp + fp) : 0;
     const recall = tp + fn ? tp / (tp + fn) : 0;
     const specificity = tn + fp ? tn / (tn + fp) : 0;
     const f1 = precision + recall ? 2 * precision * recall / (precision + recall) : 0;
+
+    console.log('\nCase results by behavior');
+    for (const [category, summary] of Object.entries(byCategory)) {
+        console.log(`  ${category}: ${summary.passed}/${summary.cases} passed, ${summary.failed} failed`);
+    }
 
     console.log('\nConfusion matrix (actual rows, predicted columns)');
     console.log('                  grounded  ungrounded');
@@ -150,6 +177,7 @@ async function evaluate() {
             note: 'Small synthetic cases; not a representative accuracy benchmark.',
             confusion_matrix: { true_positive: tp, false_positive: fp, true_negative: tn, false_negative: fn },
             metrics: { accuracy, precision, recall, specificity, f1 },
+            by_category: byCategory,
             cases: caseResults
         };
         const resolvedPath = path.resolve(outputPath);
