@@ -111,6 +111,14 @@ A regex-driven entity tracker isolates numbers, percentages, dates, and capitali
 
 The repository's small illustrative grounding evaluation is a diagnostic, not a representative accuracy benchmark. Run it with `npm run eval:grounding`; inspect the individual cases and misclassifications rather than treating its aggregate score as a general guarantee.
 
+To save a machine-readable report (including the confusion matrix, per-case decision method, and results grouped by behavior), run:
+
+```sh
+npm run eval:grounding -- --json-out reports/grounding-diagnostic.json
+```
+
+The command creates the output directory if needed. The report contains only the synthetic case names and evaluation results; it does not include user queries. Grouped results are small diagnostic counts, not statistically reliable category scores.
+
 ---
 
 ## 9. Guardrail Behavior
