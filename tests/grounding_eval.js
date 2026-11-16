@@ -1,4 +1,6 @@
 const { isAnswerGrounded, ABSTENTION_PREFIX } = require('../guardrails');
+const fs = require('fs');
+const path = require('path');
 
 let extractor;
 
@@ -80,6 +82,7 @@ async function evaluate() {
     let tn = 0;
     let fn = 0;
     const failures = [];
+    const caseResults = [];
 
     console.log('Grounding diagnostic cases (illustrative, not a benchmark)\n');
 
@@ -107,6 +110,15 @@ async function evaluate() {
         else if (!test.expected) tn++;
         else fn++;
 
+        const caseResult = {
+            name: test.name,
+            expected: test.expected,
+            actual: result.grounded,
+            passed,
+            method: result.method,
+            confidence: Number.isFinite(result.confidence) ? result.confidence : null
+        };
+        caseResults.push(caseResult);
         if (!passed) failures.push({ name: test.name, expected: test.expected, actual: result.grounded });
         const score = Number.isFinite(result.confidence)
             ? `, score ${result.confidence.toFixed(3)}`
@@ -115,6 +127,7 @@ async function evaluate() {
     }
 
     const total = tp + fp + tn + fn;
+    const accuracy = total ? (tp + tn) / total : 0;
     const precision = tp + fp ? tp / (tp + fp) : 0;
     const recall = tp + fn ? tp / (tp + fn) : 0;
     const specificity = tn + fp ? tn / (tn + fp) : 0;
@@ -124,7 +137,26 @@ async function evaluate() {
     console.log('                  grounded  ungrounded');
     console.log(`grounded          ${String(tp).padEnd(10)}${fn}`);
     console.log(`ungrounded        ${String(fp).padEnd(10)}${tn}`);
-    console.log(`\nCases: ${total} | Precision: ${(precision * 100).toFixed(1)}% | Recall: ${(recall * 100).toFixed(1)}% | Specificity: ${(specificity * 100).toFixed(1)}% | F1: ${(f1 * 100).toFixed(1)}%`);
+    console.log(`\nCases: ${total} | Accuracy: ${(accuracy * 100).toFixed(1)}% | Precision: ${(precision * 100).toFixed(1)}% | Recall: ${(recall * 100).toFixed(1)}% | Specificity: ${(specificity * 100).toFixed(1)}% | F1: ${(f1 * 100).toFixed(1)}%`);
+
+    const jsonOutIndex = process.argv.indexOf('--json-out');
+    if (jsonOutIndex !== -1) {
+        const outputPath = process.argv[jsonOutIndex + 1];
+        if (!outputPath || outputPath.startsWith('--')) {
+            throw new Error('Usage: npm run eval:grounding -- --json-out <path>');
+        }
+        const report = {
+            evaluation: 'illustrative_grounding_diagnostic',
+            note: 'Small synthetic cases; not a representative accuracy benchmark.',
+            confusion_matrix: { true_positive: tp, false_positive: fp, true_negative: tn, false_negative: fn },
+            metrics: { accuracy, precision, recall, specificity, f1 },
+            cases: caseResults
+        };
+        const resolvedPath = path.resolve(outputPath);
+        fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+        fs.writeFileSync(resolvedPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
+        console.log(`\nDiagnostic JSON saved to ${resolvedPath}`);
+    }
 
     if (failures.length) {
         console.log('\nMisclassified cases:');
