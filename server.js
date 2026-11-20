@@ -47,7 +47,7 @@ app.use(express.static('public'));
 app.use(express.json());
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Voice RAG Server is running, models loaded.' });
+    res.json({ status: 'ok', message: 'Voice RAG server process is running; external services are checked per request.' });
 });
 
 app.post('/retrieve', async (req, res) => {
