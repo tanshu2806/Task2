@@ -631,6 +631,13 @@
             document.getElementById('resGrounding').className = "badge neutral";
             document.getElementById('resGrounding').textContent = "NOT CHECKED";
             document.getElementById('resGroundingDetail').textContent = "";
+            // Avoid showing telemetry from a previous successful request with this error.
+            for (const id of [
+                'resSource', 'resTopK', 'resModel', 'latSTT', 'latEmb', 'latRet',
+                'latGrp', 'latLLM', 'latAnsEmb', 'latGnd', 'latTotal'
+            ]) {
+                document.getElementById(id).textContent = '—';
+            }
         }
 
         function showResult(data) {
