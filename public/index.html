@@ -555,14 +555,20 @@
         }
 
         async function sendAudio() {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const mimeType = audioChunks.find(chunk => chunk.type)?.type
+                || mediaRecorder?.mimeType
+                || 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
             if (audioBlob.size < 1000) {
                 setIdleState('Recording too short.');
                 return;
             }
 
+            const extension = mimeType.includes('mp4') ? 'mp4'
+                : mimeType.includes('ogg') ? 'ogg'
+                : 'webm';
             const formData = new FormData();
-            formData.append('audio', audioBlob, 'recording.webm');
+            formData.append('audio', audioBlob, `recording.${extension}`);
 
             try {
                 const res = await fetch('/api/ask', {
