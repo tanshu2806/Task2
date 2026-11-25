@@ -371,7 +371,7 @@ app.post('/api/ask', upload.single('audio'), async (req, res) => {
             return res.status(400).json({ error: 'Could not transcribe audio' });
         }
         
-        console.log(`🎤 STT Transcript: ${sttResult.text}`);
+        console.log('🎤 Speech transcription completed.');
         const result = await processAskQuery(sttResult.text);
         
         const voiceT1 = performance.now();
