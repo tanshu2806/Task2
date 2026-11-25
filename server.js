@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const fsPromises = require('fs/promises');
 const https = require('https');
 const { initPipeline, runPipeline } = require('./rag_pipeline');
 const { normalizeQuery } = require('./guardrails');
@@ -427,17 +428,15 @@ app.post('/api/ask', upload.single('audio'), async (req, res) => {
             message: e.message
         });
     } finally {
-        // Clean up uploaded file
         if (req.file && req.file.path) {
-            const fs = require('fs');
-            setTimeout(() => {
-                try {
-                    fs.unlinkSync(req.file.path);
-                    console.log('📁 Cleaned up:', req.file.path);
-                } catch (e) {
-                    // Ignore cleanup errors
+            try {
+                await fsPromises.unlink(req.file.path);
+                console.log('📁 Removed temporary audio upload.');
+            } catch (cleanupError) {
+                if (cleanupError.code !== 'ENOENT') {
+                    console.error('Audio upload cleanup failed:', cleanupError.message);
                 }
-            }, 1000);
+            }
         }
     }
 });
