@@ -192,10 +192,12 @@ The figures below are a historical snapshot from an earlier run, not results rep
 ## 14. Voice Flow
 
 1. **Microphone Capture:** User speaks into the browser UI.
-2. **Audio Upload:** Frontend pushes a `multipart/form-data` `.webm` or `.wav` to `/api/ask`.
+2. **Audio Upload:** Frontend sends the browser-recorded audio with its reported MIME type and matching `.webm`, `.ogg`, or `.mp4` filename to `/api/ask`.
 3. **Sarvam STT:** Audio is forwarded to Sarvam, which returns a text transcript.
 4. **Execution:** The transcript is transparently fed into `processAskQuery`.
 5. **Unified Response:** Qdrant, Groq, and grounding modules fire identical to text workflows, seamlessly returning the final grounded response to the frontend.
+
+Uploaded voice files are temporary and are removed after request handling. The server logs that transcription completed without writing the transcript text to its application log; cleanup failures are logged for follow-up.
 
 ---
 
