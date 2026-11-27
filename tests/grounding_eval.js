@@ -1,4 +1,4 @@
-const { isAnswerGrounded, ABSTENTION_PREFIX } = require('../guardrails');
+const { isAnswerGrounded, ABSTENTION_PREFIX, GROUNDING_SIMILARITY_THRESHOLD } = require('../guardrails');
 const fs = require('fs');
 const path = require('path');
 
@@ -175,6 +175,10 @@ async function evaluate() {
         const report = {
             evaluation: 'illustrative_grounding_diagnostic',
             note: 'Small synthetic cases; not a representative accuracy benchmark.',
+            grounding_configuration: {
+                embedding_model: 'Xenova/all-MiniLM-L6-v2',
+                semantic_similarity_threshold: GROUNDING_SIMILARITY_THRESHOLD
+            },
             confusion_matrix: { true_positive: tp, false_positive: fp, true_negative: tn, false_negative: fn },
             metrics: { accuracy, precision, recall, specificity, f1 },
             by_category: byCategory,

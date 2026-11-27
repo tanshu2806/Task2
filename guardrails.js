@@ -1,5 +1,6 @@
 const TOXIC_WORDS = ['stupid', 'idiot', 'hate', 'kill', 'destroy', 'fuck', 'shit'];
 const ABSTENTION_PREFIX = "I couldn't find enough information";
+const GROUNDING_SIMILARITY_THRESHOLD = 0.80;
 
 function isQuerySafe(query) {
     if (!query || query.trim().length === 0) return { safe: false, reason: "Query is empty or unrecognizable." };
@@ -88,7 +89,7 @@ function isAnswerGrounded(answer, retrievedContexts, answerEmbedding = null, chu
                 maxSim = sim;
             }
         }
-        if (maxSim >= 0.80) {
+        if (maxSim >= GROUNDING_SIMILARITY_THRESHOLD) {
             let tSem = performance.now();
             return { grounded: true, abstention: false, confidence: maxSim, method: 'semantic', lexicalMs: lexicalMs, semanticMs: tSem - tLex };
         }
@@ -98,4 +99,4 @@ function isAnswerGrounded(answer, retrievedContexts, answerEmbedding = null, chu
     return { grounded: false, abstention: false, confidence: maxSim, method: 'semantic_failed', lexicalMs: lexicalMs, semanticMs: tSem - tLex };
 }
 
-module.exports = { isQuerySafe, normalizeQuery, isAnswerGrounded, groundedAnswerOrAbstain, ABSTENTION_PREFIX };
+module.exports = { isQuerySafe, normalizeQuery, isAnswerGrounded, groundedAnswerOrAbstain, ABSTENTION_PREFIX, GROUNDING_SIMILARITY_THRESHOLD };
