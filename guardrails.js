@@ -18,14 +18,27 @@ function normalizeQuery(query) {
 const STOP_WORDS = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'it', 'this', 'that', 'he', 'she', 'they', 'of', 'from', 'with']);
 
 function cosineSimilarity(vecA, vecB) {
+    if (
+        !Array.isArray(vecA) ||
+        !Array.isArray(vecB) ||
+        vecA.length === 0 ||
+        vecA.length !== vecB.length
+    ) {
+        return 0;
+    }
+
     let dotProduct = 0, normA = 0, normB = 0;
     for (let i = 0; i < vecA.length; i++) {
-        dotProduct += vecA[i] * vecB[i];
-        normA += vecA[i] * vecA[i];
-        normB += vecB[i] * vecB[i];
+        const valueA = vecA[i];
+        const valueB = vecB[i];
+        if (!Number.isFinite(valueA) || !Number.isFinite(valueB)) return 0;
+        dotProduct += valueA * valueB;
+        normA += valueA * valueA;
+        normB += valueB * valueB;
     }
     if (normA === 0 || normB === 0) return 0;
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    return Number.isFinite(similarity) ? similarity : 0;
 }
 
 function extractClaims(text) {
