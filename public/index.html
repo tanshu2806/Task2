@@ -715,10 +715,11 @@
             }
 
             // Technical Details Table
-            const sourceDoc = (data.grouped_records && data.grouped_records.length > 0 && data.results && data.results.length > 0) 
-                              ? data.results[0].source_document 
-                              : 'None';
-            document.getElementById('resSource').textContent = sourceDoc || 'ai4bharat/MSMARCO-XI';
+            const firstResult = data.results && data.results.length > 0 ? data.results[0] : null;
+            const sourceDoc = firstResult
+                ? (firstResult.sourceDocument || firstResult.source_document || firstResult.source || 'Unknown source')
+                : 'None';
+            document.getElementById('resSource').textContent = sourceDoc;
             document.getElementById('resTopK').textContent = data.retrieval && data.retrieval.topK ? data.retrieval.topK : '5';
             document.getElementById('resModel').textContent = data.llm && data.llm.model ? data.llm.model : 'NOT CALLED';
 
