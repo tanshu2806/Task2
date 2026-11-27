@@ -7,13 +7,17 @@ const client = new QdrantClient({
     checkCompatibility: false
 });
 
-let extractor;
+let extractorPromise;
 
 async function getExtractor() {
-    if (!extractor) {
-        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    if (!extractorPromise) {
+        extractorPromise = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+            .catch(error => {
+                extractorPromise = null;
+                throw error;
+            });
     }
-    return extractor;
+    return extractorPromise;
 }
 
 async function retrieveFromQdrant(query, collectionName = 'msmarco_xi', limit = 5) {
