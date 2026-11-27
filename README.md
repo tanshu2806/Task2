@@ -111,7 +111,7 @@ A regex-driven entity tracker isolates numbers, percentages, dates, and capitali
 
 The repository's small illustrative grounding evaluation is a diagnostic, not a representative accuracy benchmark. Run it with `npm run eval:grounding`; inspect the individual cases and misclassifications rather than treating its aggregate score as a general guarantee.
 
-To save a machine-readable report (including the confusion matrix, per-case decision method, and results grouped by behavior), run:
+To save a machine-readable report (including the confusion matrix, per-case decision method, behavior groups, embedding model, and active semantic threshold), run:
 
 ```sh
 npm run eval:grounding -- --json-out reports/grounding-diagnostic.json
